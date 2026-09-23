@@ -70,6 +70,10 @@ export default function AdminSetoranPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("semua");
 
+  // =========================
+  // GET DATA SETORAN ADMIN
+  // GET /api/v1/setor-sampah/admin/list
+  // =========================
   const getData = useCallback(async () => {
     try {
       setLoading(true);
@@ -82,11 +86,47 @@ export default function AdminSetoranPage() {
         return;
       }
 
-      let url = `${BASE_URL}/setor-sampah/admin/list?bulan=${new Date().toISOString().slice(0, 7)}&_=${Date.now()}`;
-
-      if (status !== "semua") {
-        url = `${BASE_URL}/setor-sampah/admin/list?status=${status}&bulan=${new Date().toISOString().slice(0, 7)}&_=${Date.now()}`;
+      if (!BASE_URL) {
+        throw new Error("NEXT_PUBLIC_API_BASE_URL belum ditemukan.");
       }
+
+      if (!APP_KEY) {
+        throw new Error("NEXT_PUBLIC_APP_KEY belum ditemukan.");
+      }
+
+      /*
+       * Format bulan:
+       * 2026-09
+       */
+      const bulan = new Date().toISOString().slice(0, 7);
+
+      /*
+       * Endpoint:
+       * GET /api/v1/setor-sampah/admin/list
+       */
+      const params = new URLSearchParams();
+
+      /*
+       * Swagger:
+       * ?status=menunggu_konfirmasi&bulan=2026-08
+       *
+       * Status hanya dikirim kalau admin memilih
+       * status tertentu.
+       */
+      if (status !== "semua") {
+        params.set("status", status);
+      }
+
+      params.set("bulan", bulan);
+
+      /*
+       * Cache buster supaya mengambil data terbaru.
+       */
+      params.set("_", Date.now().toString());
+
+      const url = `${BASE_URL}/setor-sampah/admin/list?${params.toString()}`;
+
+      console.log("GET SETORAN ADMIN:", url);
 
       const response = await fetch(url, {
         method: "GET",
@@ -94,19 +134,22 @@ export default function AdminSetoranPage() {
           Accept: "application/json",
           "x-app-key": APP_KEY,
           Authorization: `Bearer ${token}`,
-          "Cache-Control": "no-cache",
         },
         cache: "no-store",
       });
 
       const result: ApiResponse = await response.json();
 
+      console.log("RESPONSE SETORAN ADMIN:", result);
+
       if (!response.ok || !result.success) {
         throw new Error(result.message || "Gagal mengambil data setoran.");
       }
 
-      setSetoran(result.data || []);
+      setSetoran(Array.isArray(result.data) ? result.data : []);
     } catch (err) {
+      console.error("GET SETORAN ADMIN ERROR:", err);
+
       setError(
         err instanceof Error ? err.message : "Gagal mengambil data setoran.",
       );
@@ -119,6 +162,9 @@ export default function AdminSetoranPage() {
     getData();
   }, [getData]);
 
+  // =========================
+  // FORMAT TANGGAL
+  // =========================
   const formatTanggal = (tanggal: string) => {
     if (!tanggal) return "-";
 
@@ -129,25 +175,35 @@ export default function AdminSetoranPage() {
     });
   };
 
+  // =========================
+  // FORMAT BERAT
+  // =========================
   const formatBerat = (berat: number) => {
     return new Intl.NumberFormat("id-ID", {
       maximumFractionDigits: 2,
     }).format(berat || 0);
   };
 
+  // =========================
+  // FORMAT POIN
+  // =========================
   const formatPoin = (poin: number) => {
     return new Intl.NumberFormat("id-ID").format(poin || 0);
   };
 
+  // =========================
+  // SEARCH
+  // =========================
   const filteredSetoran = setoran.filter((item) => {
-    const keyword = search.toLowerCase();
+    const keyword = search.toLowerCase().trim();
+
+    if (!keyword) return true;
+
+    const kodeSetor = item.kodeSetor?.toLowerCase() || "";
 
     const namaNasabah = item.nasabah?.namaNasabah?.toLowerCase() || "";
 
-    return (
-      item.kodeSetor?.toLowerCase().includes(keyword) ||
-      namaNasabah.includes(keyword)
-    );
+    return kodeSetor.includes(keyword) || namaNasabah.includes(keyword);
   });
 
   return (
@@ -156,11 +212,13 @@ export default function AdminSetoranPage() {
 
       <main className="ml-0 min-h-screen w-full pt-[88px] lg:ml-[278px] lg:w-[calc(100%-278px)]">
         <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          {/* HEADER */}
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-[#172b4d]">
                 Setoran Sampah
               </h1>
+
               <p className="mt-1 text-sm text-[#718198]">
                 Kelola pengajuan setoran sampah nasabah
               </p>
@@ -170,15 +228,17 @@ export default function AdminSetoranPage() {
               type="button"
               onClick={getData}
               disabled={loading}
-              className="flex w-fit items-center gap-2 rounded-xl border border-[#e3e8ef] bg-white px-4 py-2.5 text-sm font-semibold text-[#304563] transition hover:border-[#07966f] hover:text-[#07966f] disabled:opacity-60"
+              className="flex w-fit items-center gap-2 rounded-xl border border-[#e3e8ef] bg-white px-4 py-2.5 text-sm font-semibold text-[#304563] transition hover:border-[#07966f] hover:text-[#07966f] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <RefreshCw size={17} className={loading ? "animate-spin" : ""} />
               Refresh
             </button>
           </div>
 
+          {/* SEARCH + FILTER */}
           <div className="mb-6 rounded-2xl border border-[#e3e8ef] bg-white p-4">
             <div className="flex flex-col gap-3 md:flex-row">
+              {/* SEARCH */}
               <div className="relative flex-1">
                 <Search
                   size={18}
@@ -194,29 +254,37 @@ export default function AdminSetoranPage() {
                 />
               </div>
 
+              {/* STATUS */}
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="rounded-xl border border-[#dce3ea] bg-white px-4 py-2.5 text-sm text-[#304563] outline-none focus:border-[#07966f]"
+                className="rounded-xl border border-[#dce3ea] bg-white px-4 py-2.5 text-sm text-[#304563] outline-none transition focus:border-[#07966f] focus:ring-2 focus:ring-[#07966f]/10"
               >
                 <option value="semua">Semua Status</option>
+
                 <option value="menunggu_konfirmasi">Menunggu Konfirmasi</option>
+
                 <option value="diverifikasi">Diverifikasi</option>
+
                 <option value="selesai">Selesai</option>
+
                 <option value="ditolak">Ditolak</option>
               </select>
             </div>
           </div>
 
+          {/* LOADING */}
           {loading && (
             <div className="flex min-h-[400px] items-center justify-center rounded-2xl border border-[#e3e8ef] bg-white">
               <div className="flex flex-col items-center gap-3">
                 <Loader2 size={32} className="animate-spin text-[#07966f]" />
+
                 <p className="text-sm text-[#718198]">Memuat data setoran...</p>
               </div>
             </div>
           )}
 
+          {/* ERROR */}
           {!loading && error && (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
               <p className="font-semibold text-red-600">Terjadi kesalahan</p>
@@ -233,6 +301,7 @@ export default function AdminSetoranPage() {
             </div>
           )}
 
+          {/* DATA */}
           {!loading && !error && (
             <div className="overflow-hidden rounded-2xl border border-[#e3e8ef] bg-white">
               <div className="overflow-x-auto">
@@ -276,12 +345,14 @@ export default function AdminSetoranPage() {
                           key={item.id}
                           className="border-b border-[#eef1f4] last:border-0 hover:bg-[#fafcfb]"
                         >
+                          {/* KODE */}
                           <td className="px-5 py-4">
                             <p className="text-sm font-semibold text-[#172b4d]">
                               {item.kodeSetor || "-"}
                             </p>
                           </td>
 
+                          {/* NASABAH */}
                           <td className="px-5 py-4">
                             <p className="text-sm font-semibold text-[#304563]">
                               {item.nasabah?.namaNasabah || "-"}
@@ -294,18 +365,22 @@ export default function AdminSetoranPage() {
                             )}
                           </td>
 
+                          {/* TANGGAL */}
                           <td className="px-5 py-4 text-sm text-[#304563]">
                             {formatTanggal(item.tanggal)}
                           </td>
 
+                          {/* BERAT */}
                           <td className="px-5 py-4 text-sm font-semibold text-[#304563]">
                             {formatBerat(item.totalBeratKg)} kg
                           </td>
 
+                          {/* POIN */}
                           <td className="px-5 py-4 text-sm font-semibold text-[#07966f]">
                             {formatPoin(item.totalPoin)} Pts
                           </td>
 
+                          {/* STATUS */}
                           <td className="px-5 py-4">
                             <span
                               className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${
@@ -317,6 +392,7 @@ export default function AdminSetoranPage() {
                             </span>
                           </td>
 
+                          {/* DETAIL */}
                           <td className="px-5 py-4">
                             <div className="flex justify-center">
                               <Link
@@ -345,6 +421,7 @@ export default function AdminSetoranPage() {
                 </table>
               </div>
 
+              {/* FOOTER */}
               <div className="border-t border-[#e3e8ef] px-5 py-4">
                 <p className="text-sm text-[#718198]">
                   Menampilkan{" "}

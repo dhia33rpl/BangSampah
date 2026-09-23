@@ -14,6 +14,7 @@ import {
   X,
   Recycle,
   ArrowRightLeft,
+  BarChart3,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -47,6 +48,11 @@ const menuItems = [
     label: "Penukaran Poin",
     href: "/admin/penukaran",
     icon: ArrowRightLeft,
+  },
+  {
+    label: "Rekapitulasi",
+    href: "/admin/recap",
+    icon: BarChart3,
   },
   {
     label: "Profile",

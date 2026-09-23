@@ -248,7 +248,7 @@ export default function NasabahDashboardPage() {
 
             {/* HARGA */}
             <Link
-              href="/nasabah/kategori"
+              href="/nasabah/daftarsampah"
               className="group bg-white border border-[#e0e7ef] rounded-2xl px-5 py-5 flex items-center gap-4 hover:border-[#b7e8d9] hover:shadow-sm transition"
             >
               <div className="w-[50px] h-[50px] rounded-xl bg-[#e2edff] flex items-center justify-center text-[#2563eb] shrink-0">
