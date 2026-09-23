@@ -1,0 +1,2 @@
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://learn.smktelkom-mlg.sch.id/bank_sampah/api/v1";
+const APP_KEY = process.env.NEXT_PUBLIC_APP_KEY ||"b2c140b3-2633-4efc-8094-a037a41832bd";
